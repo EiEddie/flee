@@ -81,3 +81,30 @@ impl Graph {
 		return Ok(paths);
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn find_path() {
+		// [1] <-1.2-> [2] <-2.3-> [*3]
+		// [4] <-1.4-> [1]
+		// [4] <-2.4-> [2]
+		// [4] <-3.4-> [*3]
+		let mut g = Graph::new();
+		g.new_vert(String::from("1"), false);
+		g.new_vert(String::from("2"), false);
+		g.new_vert(String::from("3"), true);
+		g.new_vert(String::from("4"), false);
+		let _ = g.new_edge(String::from("1"), String::from("2"), 1.2);
+		let _ = g.new_edge(String::from("2"), String::from("3"), 2.3);
+		let _ = g.new_edge(String::from("1"), String::from("4"), 1.4);
+		let _ = g.new_edge(String::from("2"), String::from("4"), 2.4);
+		let _ = g.new_edge(String::from("3"), String::from("4"), 3.4);
+
+		for (index, path) in g.DFS(String::from("1")).unwrap().iter().enumerate() {
+			println!("{}: {path}", index + 1);
+		}
+	}
+}
