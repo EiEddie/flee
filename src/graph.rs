@@ -29,6 +29,10 @@ struct Graph {
 }
 
 impl Graph {
+	fn new() -> Self {
+		Graph { vert_map: HashMap::new(), }
+	}
+
 	/// 添加一个新的顶点, `id` 与 `is_exit` 字段由参数指定.
 	///
 	/// # Returns
@@ -66,5 +70,36 @@ impl Graph {
 		self._new_edge_forward(v1.clone(), v2.clone(), dist)?;
 		self._new_edge_forward(v2, v1, dist)?;
 		Ok(())
+	}
+}
+
+impl std::fmt::Display for Graph {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		for (id, vert) in &self.vert_map {
+			for edge in &vert.nbrs {
+				// Safety: read only
+				let id2 = unsafe { &(*edge.vert).id };
+				writeln!(f, "[{id}] <-{}-> [{}]", edge.dist, id2)?;
+			}
+		}
+		Ok(())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn print_graph() {
+		// [1] <-0.5-> [2] <-1.2-> [3]
+		let mut g = Graph::new();
+		g.new_vert(String::from("1"), false);
+		g.new_vert(String::from("2"), false);
+		g.new_vert(String::from("3"), false);
+		let _ = g.new_edge(String::from("1"), String::from("2"), 0.5);
+		let _ = g.new_edge(String::from("3"), String::from("2"), 1.2);
+
+		println!("{g}");
 	}
 }
