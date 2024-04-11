@@ -44,17 +44,13 @@ impl Graph {
 		this_path.points.push_back((vert as *const Vert, dist));
 
 		// 当顶点已经是终点(之一)时, 保存这条路径
-		// 并继续搜索其余顶点
 		if unsafe { (*vert).is_exit } {
 			paths.push(this_path.clone());
-			this_path.points.pop_back();
-			unsafe { (*vert).is_searching = false };
-			return this_path;
-		}
-
-		// 对后继顶点的搜索
-		for Edge { vert, dist } in unsafe { &(*vert).nbrs } {
-			this_path = self._DFS_(*vert, *dist, this_path, paths);
+		} else {
+			// 对后继顶点的搜索
+			for Edge { vert, dist } in unsafe { &(*vert).nbrs } {
+				this_path = self._DFS_(*vert, *dist, this_path, paths);
+			}
 		}
 
 		// 本顶点的后继的搜索已经完成
