@@ -8,8 +8,8 @@ pub enum Error {
 	#[error("Given id for vert is not exist")]
 	NoVert,
 
-	#[error("Syntax error in the file used to build the graph")]
-	FileSyntaxWrong,
+	#[error("Syntax error in the file used to build the graph, in line {0}: {1}")]
+	FileSyntaxWrong(usize, String),
 
 	#[error(transparent)]
 	IoError(#[from] ::std::io::Error),
