@@ -7,6 +7,12 @@ pub enum Error {
 
 	#[error("Given id for vert is not exist")]
 	NoVert,
+
+	#[error("Syntax error in the file used to build the graph")]
+	FileSyntaxWrong,
+
+	#[error(transparent)]
+	IoError(#[from] ::std::io::Error),
 }
 
 impl From<&'static str> for Error {
