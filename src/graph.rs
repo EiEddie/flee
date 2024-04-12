@@ -83,7 +83,19 @@ impl std::fmt::Display for Graph {
 			for edge in &vert.nbrs {
 				// Safety: read only
 				let id2 = unsafe { &(*edge.vert).id };
-				writeln!(f, "[{id}] <-{}-> [{}]", edge.dist, id2)?;
+				writeln!(
+				         f,
+				         "[{}{}] <-{}-> [{}{}]",
+				         if vert.is_exit { "*" } else { "" },
+				         id,
+				         edge.dist,
+				         if unsafe { (*edge.vert).is_exit } {
+					         "*"
+				         } else {
+					         ""
+				         },
+				         id2
+				)?;
 			}
 		}
 		Ok(())
