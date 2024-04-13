@@ -1,4 +1,3 @@
-use std::char;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -15,7 +14,7 @@ impl TextFile {
 	}
 }
 
-impl TryFrom<TextFile> for Graph {
+impl<'a> TryFrom<TextFile> for Graph<'a> {
 	type Error = error::Error;
 
 	fn try_from(value: TextFile) -> Result<Self, Self::Error> {
@@ -47,8 +46,7 @@ impl TryFrom<TextFile> for Graph {
 
 			if should_add_vert && !has_left_quota {
 				a_exit.pop();
-				g.new_vert(a_exit.clone(), true);
-				// TODO: 将 graph 中储存的 id 改为 &str 类型
+				g.new_vert(&a_exit, true);
 				a_exit.clear();
 			}
 		}
@@ -70,9 +68,8 @@ impl TryFrom<TextFile> for Graph {
 			let mut cnt = 0;
 			let mut has_left_quota = false;
 
-			let mut edge: [String; 3] = ["".to_string(), "".to_string(), "".to_string()];
+			let mut edge: [String; 3] = [String::new(), String::new(), String::new()];
 			for char in line.chars() {
-				// FIXME: ^
 				let should_add_edge = has_left_quota;
 
 				if has_left_quota {
@@ -91,11 +88,11 @@ impl TryFrom<TextFile> for Graph {
 					edge[cnt].pop();
 					match cnt {
 						0 | 1 => {
-							g.new_vert(edge[cnt].clone(), false);
+							g.new_vert(&edge[cnt], false);
 						},
 						2 => {g.new_edge(
-							edge[0].clone(),
-							edge[1].clone(),
+							&edge[0],
+							&edge[1],
 							edge[2]
 								.parse()
 								.map_err(|_| error::Error::FileSyntaxWrong(lnum + 1, String::from("distance type wrong")))?,

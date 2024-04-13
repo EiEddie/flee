@@ -4,12 +4,12 @@ use crate::error::*;
 use crate::graph::*;
 
 #[derive(Debug, Clone)]
-struct Path {
+struct Path<'a> {
 	/// 储存的是顶点和 "与它上一个顶点间的距离" 组成的 tuple.
-	points: LinkedList<(*const Vert, f64)>,
+	points: LinkedList<(*const Vert<'a>, f64)>,
 }
 
-impl std::fmt::Display for Path {
+impl<'a> std::fmt::Display for Path<'a> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let mut iter = self.points.iter();
 		write!(f, "[{}]", unsafe { &(*iter.next().unwrap().0).id })?;
@@ -22,9 +22,10 @@ impl std::fmt::Display for Path {
 	}
 }
 
-impl Graph {
+impl<'a> Graph<'a> {
 	#[allow(non_snake_case)]
-	fn _DFS_(&self, vert: *mut Vert, dist: f64, path: Path, paths: &mut Vec<Path>) -> Path {
+	fn _DFS_(&self, vert: *mut Vert<'a>, dist: f64, path: Path<'a>, paths: &mut Vec<Path<'a>>)
+	         -> Path<'a> {
 		// 现在对 `vert` 这个顶点进行操作
 		// 它与它的上一个顶点间的距离是 `dist`
 
@@ -41,7 +42,7 @@ impl Graph {
 		unsafe { (*vert).is_searching = true };
 
 		// 将本顶点放入路径中
-		this_path.points.push_back((vert as *const Vert, dist));
+		this_path.points.push_back((vert as *const Vert<'a>, dist));
 
 		// 当顶点已经是终点(之一)时, 保存这条路径
 		if unsafe { (*vert).is_exit } {
@@ -67,9 +68,9 @@ impl Graph {
 	///
 	/// 只要图是联通的, 可以保证至少有一条路, 即 [`Vec`] 内至少有一个元素.
 	#[allow(non_snake_case)]
-	fn DFS(&mut self, start: String) -> Result<Vec<Path>> {
+	fn DFS(&mut self, start: &String) -> Result<Vec<Path<'a>>> {
 		let mut paths: Vec<Path> = Vec::new();
-		let start: *mut Vert = self.vert_map.get_mut(&start).ok_or(Error::NoVert)?;
+		let start: *mut Vert = self.vert_map.get_mut(start).ok_or(Error::NoVert)?;
 		let a_path = Path { points: LinkedList::new(), };
 
 		self._DFS_(start, 0., a_path, &mut paths);
@@ -89,17 +90,17 @@ mod tests {
 		// [4] <-2.4-> [2]
 		// [4] <-3.4-> [*3]
 		let mut g = Graph::new();
-		g.new_vert(String::from("1"), false);
-		g.new_vert(String::from("2"), false);
-		g.new_vert(String::from("3"), true);
-		g.new_vert(String::from("4"), false);
-		let _ = g.new_edge(String::from("1"), String::from("2"), 1.2);
-		let _ = g.new_edge(String::from("2"), String::from("3"), 2.3);
-		let _ = g.new_edge(String::from("1"), String::from("4"), 1.4);
-		let _ = g.new_edge(String::from("2"), String::from("4"), 2.4);
-		let _ = g.new_edge(String::from("3"), String::from("4"), 3.4);
+		g.new_vert(&String::from("1"), false);
+		g.new_vert(&String::from("2"), false);
+		g.new_vert(&String::from("3"), true);
+		g.new_vert(&String::from("4"), false);
+		let _ = g.new_edge(&String::from("1"), &String::from("2"), 1.2);
+		let _ = g.new_edge(&String::from("2"), &String::from("3"), 2.3);
+		let _ = g.new_edge(&String::from("1"), &String::from("4"), 1.4);
+		let _ = g.new_edge(&String::from("2"), &String::from("4"), 2.4);
+		let _ = g.new_edge(&String::from("3"), &String::from("4"), 3.4);
 
-		for (index, path) in g.DFS(String::from("1")).unwrap().iter().enumerate() {
+		for (index, path) in g.DFS(&String::from("1")).unwrap().iter().enumerate() {
 			println!("{}: {path}", index + 1);
 		}
 	}
