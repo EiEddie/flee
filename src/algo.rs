@@ -94,11 +94,16 @@ mod tests {
 		g.new_vert(&String::from("2"), false);
 		g.new_vert(&String::from("3"), true);
 		g.new_vert(&String::from("4"), false);
-		let _ = g.new_edge(&String::from("1"), &String::from("2"), 1.2);
-		let _ = g.new_edge(&String::from("2"), &String::from("3"), 2.3);
-		let _ = g.new_edge(&String::from("1"), &String::from("4"), 1.4);
-		let _ = g.new_edge(&String::from("2"), &String::from("4"), 2.4);
-		let _ = g.new_edge(&String::from("3"), &String::from("4"), 3.4);
+		g.new_edge(&String::from("1"), &String::from("2"), 1.2)
+		 .unwrap();
+		g.new_edge(&String::from("2"), &String::from("3"), 2.3)
+		 .unwrap();
+		g.new_edge(&String::from("1"), &String::from("4"), 1.4)
+		 .unwrap();
+		g.new_edge(&String::from("2"), &String::from("4"), 2.4)
+		 .unwrap();
+		g.new_edge(&String::from("3"), &String::from("4"), 3.4)
+		 .unwrap();
 
 		for (index, path) in g.DFS(&String::from("1")).unwrap().iter().enumerate() {
 			println!("{}: {path}", index + 1);

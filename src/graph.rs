@@ -157,8 +157,11 @@ mod tests {
 		g.new_vert(&String::from("1"), false);
 		g.new_vert(&String::from("2"), false);
 		g.new_vert(&String::from("3"), false);
-		let _ = g.new_edge(&String::from("1"), &String::from("2"), 0.5);
-		let _ = g.new_edge(&String::from("3"), &String::from("2"), 1.2);
+		g.new_edge(&String::from("1"), &String::from("2"), 0.5)
+		 .unwrap();
+		// g.new_edge(&String::from("1"), &String::from("2"), 2.3).unwrap();
+		g.new_edge(&String::from("3"), &String::from("2"), 1.2)
+		 .unwrap();
 
 		println!("{g}");
 	}
