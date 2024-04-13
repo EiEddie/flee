@@ -64,7 +64,7 @@ impl<'a> Graph<'a> {
 			               is_exit,
 			               nbrs: Vec::new(),
 			               is_searching: false };
-			self.vert_map.insert(&v.id, v);
+			self.vert_map.insert(v.id, v);
 		}
 		return is_exist;
 	}
