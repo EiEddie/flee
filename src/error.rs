@@ -8,6 +8,12 @@ pub enum Error {
 	#[error("Given id for vert is not exist")]
 	NoVert,
 
+	#[error("Two edge have the same start and end")]
+	DoubleEdge,
+
+	#[error("Edge pointing to itself")]
+	SelfEdge,
+
 	#[error("Syntax error in the file used to build the graph, in line {0}: {1}")]
 	FileSyntaxWrong(usize, String),
 

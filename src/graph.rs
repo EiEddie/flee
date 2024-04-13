@@ -1,4 +1,5 @@
-use std::collections::{HashMap, LinkedList};
+use std::collections::{HashMap, HashSet, LinkedList};
+use std::hash::Hash;
 
 use crate::error::*;
 
@@ -7,6 +8,20 @@ pub(crate) struct Edge<'a> {
 	pub(crate) vert: *mut Vert<'a>,
 	pub(crate) dist: f64,
 }
+
+impl<'a> Hash for Edge<'a> {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.vert.hash(state);
+	}
+}
+
+impl<'a> PartialEq for Edge<'a> {
+	fn eq(&self, other: &Self) -> bool {
+		self.vert == other.vert
+	}
+}
+
+impl<'a> Eq for Edge<'a> {}
 
 pub(crate) struct Vert<'a> {
 	/// 顶点的唯一标识名.
@@ -17,7 +32,7 @@ pub(crate) struct Vert<'a> {
 
 	/// 节点的邻点列表.
 	/// 储存的是 [`Edge`]
-	pub(crate) nbrs: Vec<Edge<'a>>,
+	pub(crate) nbrs: HashSet<Edge<'a>>,
 
 	/// 标识是否正在遍历
 	pub(crate) is_searching: bool,
@@ -62,7 +77,7 @@ impl<'a> Graph<'a> {
 			};
 			let v = Vert { id,
 			               is_exit,
-			               nbrs: Vec::new(),
+			               nbrs: HashSet::new(),
 			               is_searching: false };
 			self.vert_map.insert(v.id, v);
 		}
@@ -72,21 +87,33 @@ impl<'a> Graph<'a> {
 	/// 添加一条单向的边, 从 `from` 指向 `to`, 长度为 `dist`.
 	///
 	/// # Returns
-	/// 当给定的 `id` 不存在时, 给出一个 `NoVert` 错误
+	///
+	/// - 当给定的 `id` 不存在时, 给出一个 `NoVert` 错误
+	/// - 当这条边指向它自身时, 给出一个 `SelfEdge` 错误
+	/// - 当已经有一条指向 `to` 的边时, 给出一个 `DoubleEdge` 错误
 	fn _new_edge_forward_(&mut self, from: &String, to: &String, dist: f64) -> Result<()> {
+		if from == to {
+			return Err(Error::SelfEdge);
+		}
 		let to: *mut Vert = self.vert_map.get_mut(to).ok_or(Error::NoVert)?;
-		self.vert_map
-		    .get_mut(from)
-		    .ok_or(Error::NoVert)?
-		    .nbrs
-		    .push(Edge { vert: to, dist });
+		if !self.vert_map
+		        .get_mut(from)
+		        .ok_or(Error::NoVert)?
+		        .nbrs
+		        .insert(Edge { vert: to, dist })
+		{
+			return Err(Error::DoubleEdge);
+		}
 		Ok(())
 	}
 
 	/// 添加一条双向的边, 长度为 `dist`.
 	///
 	/// # Returns
-	/// 当给定的 `id` 不存在时, 给出一个 `NoVert` 错误
+	///
+	/// - 当给定的 `id` 不存在时, 给出一个 `NoVert` 错误
+	/// - 当这条边指向它自身时, 给出一个 `SelfEdge` 错误
+	/// - 当已经有一条指向 `to` 的边时, 给出一个 `DoubleEdge` 错误
 	pub(crate) fn new_edge(&mut self, v1: &String, v2: &String, dist: f64) -> Result<()> {
 		self._new_edge_forward_(v1, v2, dist)?;
 		self._new_edge_forward_(v2, v1, dist)?;
