@@ -24,32 +24,34 @@ impl<'a> std::fmt::Display for Path<'a> {
 
 impl<'a> Graph<'a> {
 	#[allow(non_snake_case)]
-	fn _DFS_(&self, vert: *mut Vert<'a>, dist: f64, path: Path<'a>, paths: &mut Vec<Path<'a>>)
+	fn _DFS_(&mut self, vert: *mut Vert<'a>, dist: f64, path: Path<'a>,
+	         paths: &mut Vec<Path<'a>>)
 	         -> Path<'a> {
 		// 现在对 `vert` 这个顶点进行操作
 		// 它与它的上一个顶点间的距离是 `dist`
+		let vert_is_searching = unsafe { &mut (*vert).is_searching };
+		let vert: &Vert<'a> = unsafe { &*(vert as *const Vert<'a>) };
 
 		let mut this_path = path;
 
 		// 已经陷入环形, 跳过此顶点继续搜索
-		if unsafe { (*vert).is_searching } {
+		if *vert_is_searching {
 			return this_path;
 		}
 
 		// 在搜索这个顶点的后继时, 本顶点不可再被进入
 		// 这样是为了避免陷入顶点环中
-		// Safety: 仅可在单线程操作
-		unsafe { (*vert).is_searching = true };
+		*vert_is_searching = true;
 
 		// 将本顶点放入路径中
 		this_path.points.push_back((vert as *const Vert<'a>, dist));
 
 		// 当顶点已经是终点(之一)时, 保存这条路径
-		if unsafe { (*vert).is_exit } {
+		if vert.is_exit {
 			paths.push(this_path.clone());
 		} else {
 			// 对后继顶点的搜索
-			for Edge { vert, dist } in unsafe { &(*vert).nbrs } {
+			for Edge { vert, dist } in &vert.nbrs {
 				this_path = self._DFS_(*vert, *dist, this_path, paths);
 			}
 		}
@@ -60,7 +62,7 @@ impl<'a> Graph<'a> {
 		this_path.points.pop_back();
 
 		// 本顶点已被搜索完成, 后续的搜索仍可继续进入本顶点
-		unsafe { (*vert).is_searching = false };
+		*vert_is_searching = false;
 		return this_path;
 	}
 
@@ -70,7 +72,7 @@ impl<'a> Graph<'a> {
 	#[allow(non_snake_case)]
 	fn DFS(&mut self, start: &String) -> Result<Vec<Path<'a>>> {
 		let mut paths: Vec<Path> = Vec::new();
-		let start: *mut Vert = *self.vert_map.get(start).ok_or(Error::NoVert)?;
+		let start = self.get_mut(start).ok_or(Error::NoVert)? as *mut Vert<'a>;
 		let a_path = Path { points: LinkedList::new(), };
 
 		self._DFS_(start, 0., a_path, &mut paths);

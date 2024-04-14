@@ -70,7 +70,7 @@ pub(crate) struct Graph<'a> {
 	///
 	/// - `key`: 顶点的 id
 	/// - `value`: 顶点
-	pub(crate) vert_map: HashMap<&'a String, *mut Vert<'a>>,
+	vert_map: HashMap<&'a String, *mut Vert<'a>>,
 }
 
 impl<'a> Graph<'a> {
@@ -78,6 +78,20 @@ impl<'a> Graph<'a> {
 		Graph { ids:      LinkedList::new(),
 		        verts:    LinkedList::new(),
 		        vert_map: HashMap::new(), }
+	}
+
+	pub(crate) fn get(&self, id: &String) -> Option<&Vert<'a>> {
+		// Safety:
+		// 能保证 `self.verts` 只进不出
+		// 也就是说指向这个容器内元素的指针在结构体生命周期内始终有效
+		self.vert_map.get(id).map(|v| unsafe { &**v })
+	}
+
+	pub(crate) fn get_mut(&mut self, id: &String) -> Option<&mut Vert<'a>> {
+		// Safety:
+		// 能保证 `self.verts` 只进不出
+		// 也就是说指向这个容器内元素的指针在结构体生命周期内始终有效
+		self.vert_map.get(id).map(|v| unsafe { &mut **v })
 	}
 
 	/// 添加一个新的顶点, `id` 与 `is_exit` 字段由参数指定.
@@ -127,12 +141,12 @@ impl<'a> Graph<'a> {
 		if from == to {
 			return Err(Error::SelfEdge);
 		}
-		let to: *mut Vert = *self.vert_map.get(to).ok_or(Error::NoVert)?;
-		let from = *self.vert_map.get_mut(from).ok_or(Error::NoVert)?;
-		// Safety:
-		// 能保证 `self.verts` 只进不出
-		// 也就是说指向这个容器内元素的指针在结构体生命周期内始终有效
-		if !unsafe { &mut (*from).nbrs }.insert(Edge { vert: to, dist }) {
+		let to: *mut Vert = self.get_mut(to).ok_or(Error::NoVert)?;
+		if !self.get_mut(from)
+		        .ok_or(Error::NoVert)?
+		        .nbrs
+		        .insert(Edge { vert: to, dist })
+		{
 			return Err(Error::DoubleEdge);
 		}
 		Ok(())
