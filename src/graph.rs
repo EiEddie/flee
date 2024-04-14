@@ -204,10 +204,48 @@ mod tests {
 		g.new_vert(&String::from("3"), false);
 		g.new_edge(&String::from("1"), &String::from("2"), 0.5)
 		 .unwrap();
-		// g.new_edge(&String::from("1"), &String::from("2"), 2.3).unwrap();
 		g.new_edge(&String::from("3"), &String::from("2"), 1.2)
 		 .unwrap();
 
 		println!("{g}");
+	}
+
+	#[test]
+	fn mem_safe() {
+		let mut g = Graph::new();
+		for i in 0..10000 {
+			g.new_vert(&i.to_string(), false);
+		}
+		for j in 1..10000 {
+			g.new_edge(&String::from("0"), &j.to_string(), j as f64).unwrap();
+		}
+
+		for k in &g.get(&String::from("0")).unwrap().nbrs {
+			let v = unsafe {&*k.vert};
+			assert!(!v.is_searching);
+		}
+	}
+
+	#[test]
+	fn edge_error() {
+		let mut g = Graph::new();
+
+		if let Err(Error::NoVert) = g.new_edge(&String::from("1"), &String::from("2"), 0.) {
+		} else {
+			panic!("NoVert err is not triggered");
+		}
+
+		g.new_vert(&String::from("1"), false);
+		g.new_vert(&String::from("2"), false);
+		if let Err(Error::SelfEdge) = g.new_edge(&String::from("1"), &String::from("1"), 0.) {
+		} else {
+			panic!("SelfEdge err is not triggered");
+		}
+
+		g.new_edge(&String::from("1"), &String::from("2"), 1.).unwrap();
+		if let Err(Error::DoubleEdge) = g.new_edge(&String::from("2"), &String::from("1"), 2.) {
+		} else {
+			panic!("DoubleEdge err is not triggered");
+		}
 	}
 }
