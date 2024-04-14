@@ -14,8 +14,8 @@ pub enum Error {
 	#[error("Edge pointing to itself")]
 	SelfEdge,
 
-	#[error("Syntax error in the file used to build the graph, in line {0}: {1}")]
-	FileSyntaxWrong(usize, String),
+	#[error("Error in the file used to build the graph, in line {0}: {1}")]
+	FileWrong(usize, String),
 
 	#[error(transparent)]
 	IoError(#[from] ::std::io::Error),

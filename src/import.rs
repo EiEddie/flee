@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-use crate::error;
+use crate::error::{self, Error};
 use crate::graph::Graph;
 
 struct TextFile {
@@ -51,12 +51,7 @@ fn parse_a_line<F>(line: &String, line_num: usize, mut f: F) -> error::Result<()
 		}
 	}
 	if has_left_quota {
-		return Err(error::Error::FileSyntaxWrong(
-		                                         line_num,
-		                                         String::from(
-			"quotation marks not match",
-		),
-		));
+		return Err(Error::FileWrong(line_num, String::from("Quotation marks not match")));
 	}
 
 	Ok(())
@@ -82,16 +77,19 @@ fn parse_edge_line_and_insert(g: &mut Graph, edge_line: String, line_num: usize)
 				// TODO: ^ clone 造成的性能损失
 			},
 			2 => {
-				let dist = word.parse().map_err(|_| {
-					                        error::Error::FileSyntaxWrong(line_num, String::from("distance type wrong"))
-				                        })?;
-				g.new_edge(&edge[0], &edge[1], dist)?;
+				let dist =
+					word.parse().map_err(|_| {
+						             Error::FileWrong(line_num, String::from("Distance type wrong"))
+					             })?;
+				g.new_edge(&edge[0], &edge[1], dist).map_err(|err| {
+					                                     if let Error::NoVert = err {
+						                                     panic!("File parsing error");
+					                                     }
+					                                     Error::FileWrong(line_num, err.to_string())
+				                                     })?;
 			},
 			_ => {
-				return Err(error::Error::FileSyntaxWrong(
-				                                         line_num,
-				                                         String::from("too many words"),
-				));
+				return Err(Error::FileWrong(line_num, String::from("Too many words")));
 			},
 		}
 		cnt += 1;
@@ -100,7 +98,7 @@ fn parse_edge_line_and_insert(g: &mut Graph, edge_line: String, line_num: usize)
 }
 
 impl<'a> TryFrom<TextFile> for Graph<'a> {
-	type Error = error::Error;
+	type Error = Error;
 
 	fn try_from(value: TextFile) -> Result<Self, Self::Error> {
 		let mut g = Graph::new();
@@ -111,7 +109,7 @@ impl<'a> TryFrom<TextFile> for Graph<'a> {
 		// 第一行储存的是出口
 		// 将它们提前添加到图里
 		let (_, exits) = line_iter.next()
-		                          .ok_or(error::Error::FileSyntaxWrong(1, String::from("file is empty")))?;
+		                          .ok_or(error::Error::FileWrong(1, String::from("File is empty")))?;
 		parse_exits_line_and_insert(&mut g, exits?)?;
 
 		// 开始处理含有顶点关系和距离的字段
