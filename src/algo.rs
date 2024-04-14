@@ -70,7 +70,7 @@ impl<'a> Graph<'a> {
 	#[allow(non_snake_case)]
 	fn DFS(&mut self, start: &String) -> Result<Vec<Path<'a>>> {
 		let mut paths: Vec<Path> = Vec::new();
-		let start: *mut Vert = self.vert_map.get_mut(start).ok_or(Error::NoVert)?;
+		let start: *mut Vert = *self.vert_map.get(start).ok_or(Error::NoVert)?;
 		let a_path = Path { points: LinkedList::new(), };
 
 		self._DFS_(start, 0., a_path, &mut paths);

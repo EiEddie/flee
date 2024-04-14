@@ -3,6 +3,7 @@ use std::hash::Hash;
 
 use crate::error::*;
 
+#[derive(Debug)]
 pub(crate) struct Edge<'a> {
 	// NOTE: 保证通过指针仅能改变 `is_search` 的值.
 	pub(crate) vert: *mut Vert<'a>,
@@ -11,18 +12,23 @@ pub(crate) struct Edge<'a> {
 
 impl<'a> Hash for Edge<'a> {
 	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-		self.vert.hash(state);
+		// 当 vert 的 id 相同时, 两者 vert 指针指向的位置始终相同
+		// 因为 vert 保存在一个 LinkedList  内
+		// 而 Edge 的 vert 指针始终指向 LinkedList 中的对应值
+		std::ptr::hash(self.vert, state);
 	}
 }
 
 impl<'a> PartialEq for Edge<'a> {
 	fn eq(&self, other: &Self) -> bool {
-		self.vert == other.vert
+		// 为了保证当两者哈希值相同时, 两者始终相等
+		unsafe { (*self.vert).id == (*other.vert).id }
 	}
 }
 
 impl<'a> Eq for Edge<'a> {}
 
+#[derive(Debug)]
 pub(crate) struct Vert<'a> {
 	/// 顶点的唯一标识名.
 	pub(crate) id: &'a String,
@@ -38,7 +44,10 @@ pub(crate) struct Vert<'a> {
 	pub(crate) is_searching: bool,
 }
 
+#[derive(Debug)]
 pub(crate) struct Graph<'a> {
+	/// 存储每个顶点 `id` 的容器, 拥有所有 `id` 的所有权
+	///
 	/// # Waring
 	///
 	/// !!! 必须保证指向此容器内的任意元素的引用在结构体被丢弃之前始终有效 !!!
@@ -47,16 +56,27 @@ pub(crate) struct Graph<'a> {
 	/// 因此此容器使用 [`LinkedList`], 因为诸如 [`Vec`] 会进行内存扩容与值在内存中的移动.
 	ids: LinkedList<String>,
 
+	/// 存储每个顶点的容器, 拥有所有顶点的所有权
+	///
+	/// # Waring
+	///
+	/// !!! 必须保证指向此容器内的任意元素的指针在结构体被丢弃之前始终有效 !!!
+	///
+	/// 也就是说不允许任何删除此容器内元素的行为, 也不允许任何种类的内存再分配.
+	/// 因此此容器使用 [`LinkedList`], 因为诸如 [`Vec`] 会进行内存扩容与值在内存中的移动.
+	verts: LinkedList<Vert<'a>>,
+
 	/// 建立顶点与实际平面图间的对应关系.
 	///
 	/// - `key`: 顶点的 id
-	/// - `value`: 顶点, 拥有其所有权
-	pub(crate) vert_map: HashMap<&'a String, Vert<'a>>,
+	/// - `value`: 顶点
+	pub(crate) vert_map: HashMap<&'a String, *mut Vert<'a>>,
 }
 
 impl<'a> Graph<'a> {
 	pub(crate) fn new() -> Self {
 		Graph { ids:      LinkedList::new(),
+		        verts:    LinkedList::new(),
 		        vert_map: HashMap::new(), }
 	}
 
@@ -66,7 +86,11 @@ impl<'a> Graph<'a> {
 	/// 若已存在 id 重复的顶点, 返回 `true`; 否则返回 `false`.
 	pub(crate) fn new_vert(&mut self, id: &String, is_exit: bool) -> bool {
 		let is_exist = self.vert_map.contains_key(&id);
+
+		// 如果给定的 id 不存在
+		// 即对应的顶点不存在
 		if !is_exist {
+			// 将 id 放入 id 池内, 并获得这个 id 的引用
 			self.ids.push_back(id.clone());
 			// Safety:
 			// 能保证 `self.ids` 只进不出
@@ -75,11 +99,19 @@ impl<'a> Graph<'a> {
 				let raw_ptr = self.ids.back().unwrap() as *const String;
 				&*raw_ptr
 			};
+
+			// 将新建的顶点放入顶点池内, 并获得对这个顶点的可变引用
 			let v = Vert { id,
 			               is_exit,
 			               nbrs: HashSet::new(),
 			               is_searching: false };
-			self.vert_map.insert(v.id, v);
+			// 在顶点的 id 的借用的所有权被转移之前复制一份借用
+			let id = v.id;
+			self.verts.push_back(v);
+			let v = self.verts.back_mut().unwrap() as *mut Vert;
+
+			// 将顶点信息放入对应表内
+			self.vert_map.insert(id, v);
 		}
 		return is_exist;
 	}
@@ -95,13 +127,12 @@ impl<'a> Graph<'a> {
 		if from == to {
 			return Err(Error::SelfEdge);
 		}
-		let to: *mut Vert = self.vert_map.get_mut(to).ok_or(Error::NoVert)?;
-		if !self.vert_map
-		        .get_mut(from)
-		        .ok_or(Error::NoVert)?
-		        .nbrs
-		        .insert(Edge { vert: to, dist })
-		{
+		let to: *mut Vert = *self.vert_map.get(to).ok_or(Error::NoVert)?;
+		let from = *self.vert_map.get_mut(from).ok_or(Error::NoVert)?;
+		// Safety:
+		// 能保证 `self.verts` 只进不出
+		// 也就是说指向这个容器内元素的指针在结构体生命周期内始终有效
+		if !unsafe { &mut (*from).nbrs }.insert(Edge { vert: to, dist }) {
 			return Err(Error::DoubleEdge);
 		}
 		Ok(())
@@ -123,14 +154,14 @@ impl<'a> Graph<'a> {
 
 impl<'a> std::fmt::Display for Graph<'a> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		for (id, vert) in &self.vert_map {
-			for edge in &vert.nbrs {
+		for (&id, &vert) in &self.vert_map {
+			for edge in unsafe { &(*vert).nbrs } {
 				// Safety: read only
-				let id2 = unsafe { &(*edge.vert).id };
+				let id2 = unsafe { (*edge.vert).id };
 				writeln!(
 				         f,
 				         "[{}{}] <-{}-> [{}{}]",
-				         if vert.is_exit { "*" } else { "" },
+				         if unsafe { (*vert).is_exit } { "*" } else { "" },
 				         id,
 				         edge.dist,
 				         if unsafe { (*edge.vert).is_exit } {
