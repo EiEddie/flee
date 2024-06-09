@@ -39,9 +39,6 @@ pub(crate) struct Vert<'a> {
 	/// 节点的邻点列表.
 	/// 储存的是 [`Edge`]
 	pub(crate) nbrs: HashSet<Edge<'a>>,
-
-	/// 标识是否正在遍历
-	pub(crate) is_searching: bool,
 }
 
 #[derive(Debug)]
@@ -117,8 +114,7 @@ impl<'a> Graph<'a> {
 			// 将新建的顶点放入顶点池内, 并获得对这个顶点的可变引用
 			let v = Vert { id,
 			               is_exit,
-			               nbrs: HashSet::new(),
-			               is_searching: false };
+			               nbrs: HashSet::new() };
 			// 在顶点的 id 的借用的所有权被转移之前复制一份借用
 			let id = v.id;
 			self.verts.push_back(v);
@@ -217,12 +213,13 @@ mod tests {
 			g.new_vert(&i.to_string(), false);
 		}
 		for j in 1..10000 {
-			g.new_edge(&String::from("0"), &j.to_string(), j as f64).unwrap();
+			g.new_edge(&String::from("0"), &j.to_string(), j as f64)
+			 .unwrap();
 		}
 
 		for k in &g.get(&String::from("0")).unwrap().nbrs {
-			let v = unsafe {&*k.vert};
-			assert!(!v.is_searching);
+			let v = unsafe { &*k.vert };
+			assert!(!v.is_exit);
 		}
 	}
 
@@ -242,7 +239,8 @@ mod tests {
 			panic!("SelfEdge err is not triggered");
 		}
 
-		g.new_edge(&String::from("1"), &String::from("2"), 1.).unwrap();
+		g.new_edge(&String::from("1"), &String::from("2"), 1.)
+		 .unwrap();
 		if let Err(Error::DoubleEdge) = g.new_edge(&String::from("2"), &String::from("1"), 2.) {
 		} else {
 			panic!("DoubleEdge err is not triggered");
