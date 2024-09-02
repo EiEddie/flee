@@ -86,6 +86,9 @@ impl<'a> Graph<'a> {
 		if !is_exist {
 			// 将 id 存放在堆上
 			let id = Box::leak(Box::new(id.clone()));
+			// 将 id 的可变引用存放在 id 池中
+			// 在结构体 Drop 时将释放池中所有元素
+			self.id_poll.push_back(id);
 			// 将新建的顶点放在堆上, 并获得对这个顶点的可变引用
 			let v = Box::leak(Box::new(Vert { id,
 			                                  is_exit,
