@@ -4,12 +4,12 @@ use std::io::{BufRead, BufReader};
 use crate::error::{self, Error};
 use crate::graph::Graph;
 
-struct TextFile {
+pub struct TextFile {
 	file: File,
 }
 
 impl TextFile {
-	fn open(fpath: &str) -> error::Result<Self> {
+	pub fn open(fpath: &str) -> error::Result<Self> {
 		Ok(TextFile { file: File::open(fpath)?, })
 	}
 }
@@ -98,7 +98,7 @@ fn parse_edge_line_and_insert(g: &mut Graph, edge_line: String, line_num: usize)
 }
 
 impl<'a> TryFrom<TextFile> for Graph<'a> {
-	type Error = Error;
+	type Error = error::Error;
 
 	fn try_from(value: TextFile) -> Result<Self, Self::Error> {
 		let mut g = Graph::new();

@@ -5,8 +5,7 @@ use crate::error::*;
 
 #[derive(Debug)]
 pub(crate) struct Edge<'a> {
-	// NOTE: 保证通过指针仅能改变 `is_search` 的值.
-	pub(crate) vert: *mut Vert<'a>,
+	pub(crate) vert: *const Vert<'a>,
 	pub(crate) dist: f64,
 }
 
@@ -42,7 +41,7 @@ pub(crate) struct Vert<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Graph<'a> {
+pub struct Graph<'a> {
 	/// 存储每个顶点 `id` 的容器, 拥有所有 `id` 的所有权
 	///
 	/// # Waring

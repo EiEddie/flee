@@ -4,7 +4,7 @@ use crate::error::*;
 use crate::graph::*;
 
 #[derive(Debug, Clone)]
-struct Path<'a> {
+pub struct Path<'a> {
 	/// 储存的是顶点和 "与它上一个顶点间的距离" 组成的 tuple.
 	points: LinkedList<(*const Vert<'a>, f64)>,
 }
