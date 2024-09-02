@@ -42,25 +42,12 @@ pub(crate) struct Vert<'a> {
 
 #[derive(Debug)]
 pub struct Graph<'a> {
-	/// 存储每个顶点 `id` 的容器, 拥有所有 `id` 的所有权
+	/// 节点 id 池
 	///
-	/// # Waring
+	/// 储存所有的 id, 用于 Drop 时释放内存
 	///
-	/// !!! 必须保证指向此容器内的任意元素的引用在结构体被丢弃之前始终有效 !!!
-	///
-	/// 也就是说不允许任何删除此容器内元素的行为, 也不允许任何种类的内存再分配.
-	/// 因此此容器使用 [`LinkedList`], 因为诸如 [`Vec`] 会进行内存扩容与值在内存中的移动.
-	ids: LinkedList<String>,
-
-	/// 存储每个顶点的容器, 拥有所有顶点的所有权
-	///
-	/// # Waring
-	///
-	/// !!! 必须保证指向此容器内的任意元素的指针在结构体被丢弃之前始终有效 !!!
-	///
-	/// 也就是说不允许任何删除此容器内元素的行为, 也不允许任何种类的内存再分配.
-	/// 因此此容器使用 [`LinkedList`], 因为诸如 [`Vec`] 会进行内存扩容与值在内存中的移动.
-	verts: LinkedList<Vert<'a>>,
+	/// ! 禁止删除或更改内部的任意元素
+	id_poll: LinkedList<*mut String>,
 
 	/// 建立顶点与实际平面图间的对应关系.
 	///
@@ -71,22 +58,19 @@ pub struct Graph<'a> {
 
 impl<'a> Graph<'a> {
 	pub(crate) fn new() -> Self {
-		Graph { ids:      LinkedList::new(),
-		        verts:    LinkedList::new(),
+		Graph { id_poll:  LinkedList::new(),
 		        vert_map: HashMap::new(), }
 	}
 
 	pub(crate) fn get(&self, id: &String) -> Option<&Vert<'a>> {
 		// Safety:
-		// 能保证 `self.verts` 只进不出
-		// 也就是说指向这个容器内元素的指针在结构体生命周期内始终有效
+		// 指针在结构体 Drop 之前始终有效
 		self.vert_map.get(id).map(|v| unsafe { &**v })
 	}
 
 	pub(crate) fn get_mut(&mut self, id: &String) -> Option<&mut Vert<'a>> {
 		// Safety:
-		// 能保证 `self.verts` 只进不出
-		// 也就是说指向这个容器内元素的指针在结构体生命周期内始终有效
+		// 指针在结构体 Drop 之前始终有效
 		self.vert_map.get(id).map(|v| unsafe { &mut **v })
 	}
 
@@ -100,27 +84,15 @@ impl<'a> Graph<'a> {
 		// 如果给定的 id 不存在
 		// 即对应的顶点不存在
 		if !is_exist {
-			// 将 id 放入 id 池内, 并获得这个 id 的引用
-			self.ids.push_back(id.clone());
-			// Safety:
-			// 能保证 `self.ids` 只进不出
-			// 也就是说指向这个容器内元素的引用在结构体生命周期内始终有效
-			let id: &'a String = unsafe {
-				let raw_ptr = self.ids.back().unwrap() as *const String;
-				&*raw_ptr
-			};
-
-			// 将新建的顶点放入顶点池内, 并获得对这个顶点的可变引用
-			let v = Vert { id,
-			               is_exit,
-			               nbrs: HashSet::new() };
-			// 在顶点的 id 的借用的所有权被转移之前复制一份借用
-			let id = v.id;
-			self.verts.push_back(v);
-			let v = self.verts.back_mut().unwrap() as *mut Vert;
-
+			// 将 id 存放在堆上
+			let id = Box::leak(Box::new(id.clone()));
+			// 将新建的顶点放在堆上, 并获得对这个顶点的可变引用
+			let v = Box::leak(Box::new(Vert { id,
+			                                  is_exit,
+			                                  nbrs: HashSet::new() }));
 			// 将顶点信息放入对应表内
-			self.vert_map.insert(id, v);
+			// 只使用 id 的不可变借用
+			self.vert_map.insert(id as &String, v);
 		}
 		return is_exist;
 	}
@@ -158,6 +130,17 @@ impl<'a> Graph<'a> {
 		self._new_edge_forward_(v1, v2, dist)?;
 		self._new_edge_forward_(v2, v1, dist)?;
 		Ok(())
+	}
+}
+
+impl<'a> Drop for Graph<'a> {
+	fn drop(&mut self) {
+		for id in self.id_poll.iter() {
+			drop(unsafe { Box::from_raw(*id) });
+		}
+		for (_, v) in self.vert_map.iter() {
+			drop(unsafe { Box::from_raw(*v) });
+		}
 	}
 }
 
